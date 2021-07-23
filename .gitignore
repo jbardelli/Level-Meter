@@ -4,7 +4,18 @@
 Tensorflow/models
 Tensorflow/protoc
 Tensorflow/scripts
-Tensorflow/workspace
+Tensorflow/workspace/images
+Tensorflow/workspace/pre-trained-models
+Tensorflow/workspace/models/my_ssd_mobnet/eval
+Tensorflow/workspace/models/my_ssd_mobnet/export
+Tensorflow/workspace/models/my_ssd_mobnet/tfjsexport
+Tensorflow/workspace/models/my_ssd_mobnet/tfliteexport
+Tensorflow/workspace/models/my_ssd_mobnet/train
+Tensorflow/workspace/models/my_ssd_mobnet/ckpt*
+
+# Include the following
+!Tensorflow/workspace/models/my_ssd_mobnet/ckpt-21.data-00000-of-00001
+!Tensorflow/workspace/models/my_ssd_mobnet/ckpt-21.index
 
 # Files in root directory 
 Statistics.xlsx
@@ -15,10 +26,3 @@ Capture_Images.py
 Create_label_map.py
 Detect_from_File.py
 Detect_from_WebCam.py
-
-# Include the checkpoint that needs to be loaded by the program
-!Tensorflow/workspace/annotations
-!Tensorflow/models/my_ssd_mobnet/checkpoint
-!Tensorflow/workspace/models/my_ssd_mobnet/ckpt-21.data-00000-of-00001
-!Tensorflow/workspace/models/my_ssd_mobnet/ckpt-21.index
-!Tensorflow/workspace/models/my_ssd_mobnet/pipeline.config
