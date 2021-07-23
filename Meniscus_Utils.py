@@ -3,9 +3,11 @@ import numpy as np
 
 
 class Mark(object):                                             # Marks are the top and bottom of the test tube or burette scale
-    def __init__(self, capacity):
+    def __init__(self, capacity, dist, diam):
         self.yposition = []                                     # Array that holds the vertical position in pixels of the marks
         self.capacity = capacity                                # Capacity in milliliters of each mark
+        self.distance = dist                                    # Distance from camera to object (tube)
+        self.tube_diameter =diam                                # Tube inner diameter
 
     def mark_pos(self, event, x, y, flags, parameters):
         if event == cv2.EVENT_LBUTTONDOWN:                      # Act only on a mouse left button click on the image
@@ -70,7 +72,7 @@ def detect_lower_edge(img, y, index):
 def calculate_volumes(meniscus, marks: Mark):
     if len(marks.yposition) == 2:                                                   # Only if two marks are defined and y is in between them
         for index, y in enumerate(meniscus.yposition):
-            if y is not 0:
+            if y != 0:
                 y = position_correction(y, marks)
                 total_volume_pix = abs(marks.yposition[1] - marks.yposition[0])     # Total usable pixel range
                 if marks.yposition[0] > marks.yposition[1]:                         # Non Inverted scale subtract from top mark
@@ -86,8 +88,8 @@ def calculate_volumes(meniscus, marks: Mark):
 
 
 def position_correction(y, marks: Mark):                                            # Correct the yposition on the image
-    tube_diameter = 6                                                               # using the information of diameter of
-    distance = 197                                                                  # the tube and the distance from the
+    tube_diameter = marks.tube_diameter                                             # using the information of diameter of
+    distance = marks.distance                                                       # the tube and the distance from the
     lens_correction = -2.6e-5 * y**2 + 5.12e-2 * y - 3.31                           # camera lens
     y_corr = y + lens_correction
     ypx = (marks.yposition[1] - marks.yposition[0])/2 - (y_corr - marks.yposition[0])
@@ -99,17 +101,17 @@ def position_correction(y, marks: Mark):                                        
 
 def draw_levels(img, meniscus, canvas_height, cam_height, line_width=1, font_size=1):   # Draws a horizontal line at the bottom of the meniscus
     for index, y in enumerate(meniscus.yposition):                                      # and the parameters (position, confidence and reading)
-        if y is not 0:
-            line = int(y * canvas_height / cam_height)                                 # Resize position from cam_height to canvas size
-            start = (0, line)                                                          # Start of horizontal line
-            end = (img.shape[1], line)                                                 # End of horizontal line (img.shape[1] is the width of img)
+        if y != 0:
+            line = int(y * canvas_height / cam_height)                                  # Resize position from cam_height to canvas size
+            start = (0, line)                                                           # Start of horizontal line
+            end = (img.shape[1], line)                                                  # End of horizontal line (img.shape[1] is the width of img)
             cv2.line(img, start, end, (255, 0, 0), line_width)
             confidence = 'C= ' + str(round(meniscus.score[index] * 100, 0)) + '%'       # Prints confidence value from the Tensorflow Object Detection API
             position = 'Y= ' + str(y) + 'px'                                            # Prints position on the image in pixels
             cv2.putText(img, confidence, (img.shape[1]-90*font_size, line - 3*font_size), cv2.FONT_HERSHEY_PLAIN, font_size, (255, 0, 0), line_width, cv2.LINE_AA)
             cv2.putText(img, position, (10, line + 14*font_size), cv2.FONT_HERSHEY_PLAIN, font_size, (255, 0, 0), line_width, cv2.LINE_AA)
             if meniscus.reading[index] is not None:                                     # Put volume only if there is a value
-                volume = 'V= ' + str(meniscus.reading[index]) + 'cm3'                   # Prints volume in cubic centimeters
+                volume = 'V= ' + str(meniscus.reading[index]) + 'ml'                    # Prints volume in cubic milliliters
                 cv2.putText(img, volume, (10, line - 3*font_size), cv2.FONT_HERSHEY_PLAIN, font_size, (255, 0, 0), line_width, cv2.LINE_AA)
 
 

@@ -30,5 +30,5 @@ def label_create(parent, width_, row_, col_, pad_x, pad_y, label, var: tk.String
     aux_label1.grid(row=row_, column=col_-1)                                            # Put it in column 0 of the frame
     aux_label2 = tk.Label(parent, textvariable=var, width=width_, padx=pad_x, pady=pad_y)  # Create Label widget
     aux_label2.grid(row=row_, column=col_)                                              # Put it in column 1 of the frame
-    var.set('0')                                                                        # Initialize variable
+    # var.set('0')                                                                        # Initialize variable
     return aux_label2

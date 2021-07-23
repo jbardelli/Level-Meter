@@ -10,11 +10,11 @@
 # another application (Labview in my case).
 
 from tkinter import *
-import tkinter.ttk as ttk
 from PIL import Image, ImageTk
 from Camera_Utils import *
 from Meniscus_Utils import *
 from GUI_Utils import *
+from File_Utils import *
 from Paths import *
 import os
 import tensorflow as tf
@@ -22,11 +22,16 @@ from object_detection.utils import label_map_util
 from object_detection.builders import model_builder
 from object_detection.utils import config_util
 
+# Default Parameters that will be used unless specified in CONFIG_FILE
+CONFIG_FILE = "Level_Meter.cfg"
+DEFAULT_CAM = 0
+RESOLUTIONS = '1280x720'
+DISTANCE = 200
+TUBE_DIAM = 6
 CANVAS_WIDTH = 400
 CANVAS_HEIGHT = 600
-FONT_SIZE = 1
 LINE_WIDTH = 1
-resolutions_list = ['1280x720', '1920x1080', '2592x1944', '3840x2160']
+FONT_SIZE = 1
 
 # Load category index
 category_index = label_map_util.create_category_index_from_labelmap(files['LABELMAP'])
@@ -47,32 +52,30 @@ def detect_fn(image):
 
 
 class App:
-    def __init__(self, window, window_title, video_source=0):
+    def __init__(self, window, window_title, cfg_par: ConfigParams):
         # Class variables
         self.window = window
         self.window.title(window_title)
-        self.video_source = video_source
-        self.resolution = tk.StringVar()                                # This var is declared here because the resolution
-        self.resolution.set(resolutions_list[0])                        # is needed by MyVideoCapture function
+        self.cfg = cfg_par
+        self.video_source = self.cfg.cam
+        self.resolution = tk.StringVar()                                    # This var is declared here because the resolution
+        self.resolution.set(cfg_par.resolution)                             # is needed by MyVideoCapture function
         self.vid = MyVideoCapture(video_source=self.video_source, res_list=self.res_to_list())
         self.x1, self.x2, self.y1, self.y2 = 0, int(self.vid.height), 0, int(self.vid.width)
         self.origin_x = 0
         self.origin_y = 0
         self.meniscus = Meniscus()
-        self.static_mark = Mark([0, 0])
+        self.static_mark = Mark([0, 0], self.cfg.obj_distance, self.cfg.tube_diam)
+
         # Tkinter window definitions
         # Image Canvas
-        self.canvas = tk.Canvas(window, width=CANVAS_WIDTH, height=CANVAS_HEIGHT)
+        self.canvas = tk.Canvas(window, width=self.cfg.canvas_width, height=self.cfg.canvas_height)
         self.canvas.bind("<Button-1>", self.click_callback)
         self.canvas.grid(row=0, column=0, rowspan=4)
 
         # Camera Frame
         self.cam_frame = frame_create(window, text_="Camera", row_=0, col_=1, colspan_=2, rowspan_=1)
-        self.res_label = tk.Label(self.cam_frame, text="Resolution", width=12, padx=5, pady=8)
-        self.res_label.grid(row=0, column=0)
-        self.resolution.trace("w", self.set_resolution)
-        self.res_combo = ttk.Combobox(self.cam_frame, width=9, values=resolutions_list, textvariable=self.resolution)
-        self.res_combo.grid(row=0, column=1, padx=5, pady=8)
+        label_create(self.cam_frame, width_=15, row_=0, col_=1, pad_x=1, pad_y=8, label="Resolution", var=self.resolution)
         self.brightness = tk.IntVar()
         self.brightness.set(50)
         self.brightness.trace("w", self.set_brightness)
@@ -152,9 +155,9 @@ class App:
             print('Readings: ', self.meniscus.reading)      # Print on Command Line of another program (Labview) to capture it
 
             image_np_with_detections = cv2.resize(image_np_with_detections, self.fit_img_to_canvas())                       # Resize image to fit the height in the canvas
-            draw_levels(image_np_with_detections, self.meniscus, CANVAS_HEIGHT, self.vid.width, LINE_WIDTH, FONT_SIZE)      # Draw line and text at the meniscus lower edge
-            draw_marks(image_np_with_detections, self.static_mark, CANVAS_HEIGHT, self.vid.width, LINE_WIDTH, FONT_SIZE)    # Draw the marks that limit the volume calculation
-            draw_center_lines(image_np_with_detections, LINE_WIDTH)                                                         # Draw centered reference lines
+            draw_levels(image_np_with_detections, self.meniscus, self.cfg.canvas_height, self.vid.width, self.cfg.line_width, self.cfg.font_size)      # Draw line and text at the meniscus lower edge
+            draw_marks(image_np_with_detections, self.static_mark, self.cfg.canvas_height, self.vid.width, self.cfg.line_width, self.cfg.font_size)    # Draw the marks that limit the volume calculation
+            draw_center_lines(image_np_with_detections, self.cfg.line_width)                                                         # Draw centered reference lines
 
             self.photo = ImageTk.PhotoImage(image=Image.fromarray(image_np_with_detections))  # Create photo from array
             self.canvas.create_image(self.origin_x, self.origin_y, image=self.photo, anchor=tk.NW)  # Set image to center of canvas
@@ -165,18 +168,6 @@ class App:
 
     def set_focus(self, *args):
         self.vid.vid.set(cv2.CAP_PROP_FOCUS, self.focus.get())  # Sets cam Focus using the IntVar.get()
-
-    def set_resolution(self, *args):                                    # Sets camera Resolution using the resolution StringVar
-        res_list = self.res_to_list()                                   # Change the resolution string to integer list
-        old_res = int(self.vid.vid.get(cv2.CAP_PROP_FRAME_WIDTH))       # Resolution before the change
-        w, h, _, _, _ = set_cam_params(self.vid.vid, res_list[0], res_list[1], 100, 50, False)
-        self.vid.width, self.vid.height = int(w), int(h)                # Convert returned resolution values to integer
-        self.update_roi()                                               # Update the roi to the new resolution values
-        for idx, y in enumerate(self.static_mark.yposition):
-            self.static_mark.yposition[idx] = int(y * int(w) / old_res)     # Rescale the mark positions to new resolution
-        self.min_pos_var.set(self.static_mark.yposition[0])
-        self.max_pos_var.set(self.static_mark.yposition[1])
-        print('Resolution: ', self.vid.width, 'x', self.vid.height)     # Print returned resolution
 
     def res_to_list(self):                                              # Converts the stringVar from the Combo box in a
         res_list = str(self.resolution.get()).split('x')                # format like '1280x720' to an integer list like [1280, 720]
@@ -189,16 +180,16 @@ class App:
         self.y1 = int((self.vid.width - (self.vid.width * self.percent_y.get() / 100)) / 2)  # percentages in x and y of the camera resolution
         self.y2 = int(self.y1 + (self.vid.width * self.percent_y.get() / 100))      # x1 and x2 are the horizontal max and min pixels
         img_x, img_y = self.fit_img_to_canvas()                                     # y1 and y2 are the vertical max and min pixels
-        self.origin_x = (CANVAS_WIDTH - img_x) / 2                                  # Origin values are calculated so the image can be
-        self.origin_y = (CANVAS_HEIGHT - img_y) / 2                                 # positioned in the center of the canvas
+        self.origin_x = (self.cfg.canvas_width - img_x) / 2                                  # Origin values are calculated so the image can be
+        self.origin_y = (self.cfg.canvas_height - img_y) / 2                                 # positioned in the center of the canvas
 
     def fit_img_to_canvas(self):                                                    # Returns pixels wide and high for the cv2.resize image function
-        scale_x = int((self.x2 - self.x1) * (CANVAS_HEIGHT / (self.y2 - self.y1)))  # Proportionally resize x and y of image
-        scale_y = int(CANVAS_HEIGHT)                                                # to fit the height of canvas
+        scale_x = int((self.x2 - self.x1) * (self.cfg.canvas_height / (self.y2 - self.y1)))  # Proportionally resize x and y of image
+        scale_y = int(self.cfg.canvas_height)                                                # to fit the height of canvas
         return scale_x, scale_y
 
     def click_callback(self, event):                        # When mouse left-click on canvas, update marks to the
-        y = int(event.y * (self.y2 - self.y1) / CANVAS_HEIGHT)  # mouse click position
+        y = int(event.y * (self.y2 - self.y1) / self.cfg.canvas_height)  # mouse click position
         if len(self.static_mark.yposition) < 2:             # If less than two marks in the array, append.
             self.static_mark.yposition.append(y)            # Append the mark position to the array
         else:                                               # If there are 2 mark in the array...
@@ -236,6 +227,21 @@ class App:
             idx = self.meniscus.yposition.index(max(self.meniscus.yposition))  # Index of the reading that is at bottom
             self.intf2.set(self.meniscus.reading[idx])      # Update indicator StringVar
 
+    # OLD Code section (used to allow user to change resolution, but that caused hardware problems with USB camera
+    # Resolution cannot be changed on the fly, close app, change Level_Meter.cfg file and start app again.
+    #
+    # def set_resolution(self, *args):                                    # Sets camera Resolution using the resolution StringVar
+    #     res_list = self.res_to_list()                                   # Change the resolution string to integer list
+    #     old_res = int(self.vid.vid.get(cv2.CAP_PROP_FRAME_WIDTH))       # Resolution before the change
+    #     w, h, _, _, _ = set_cam_params(self.vid.vid, res_list[0], res_list[1], 100, 50, False)
+    #     self.vid.width, self.vid.height = int(w), int(h)                # Convert returned resolution values to integer
+    #     self.update_roi()                                               # Update the roi to the new resolution values
+    #     for idx, y in enumerate(self.static_mark.yposition):
+    #         self.static_mark.yposition[idx] = int(y * int(w) / old_res)     # Rescale the mark positions to new resolution
+    #     self.min_pos_var.set(self.static_mark.yposition[0])
+    #     self.max_pos_var.set(self.static_mark.yposition[1])
+    #     print('Resolution: ', self.vid.width, 'x', self.vid.height)     # Print returned resolution
+
 
 class MyVideoCapture:
     def __init__(self, video_source=0, res_list=None):
@@ -265,4 +271,6 @@ class MyVideoCapture:
 
 
 if __name__ == "__main__":
-    App(tk.Tk(), "Level Meter")
+    cfg_params = ConfigParams(DEFAULT_CAM, RESOLUTIONS, DISTANCE, TUBE_DIAM, CANVAS_WIDTH, CANVAS_HEIGHT, LINE_WIDTH, FONT_SIZE)
+    cfg_params = get_config(CONFIG_FILE, cfg_params)
+    App(tk.Tk(), "Level Meter", cfg_params)
