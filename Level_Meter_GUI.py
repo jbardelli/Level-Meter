@@ -17,6 +17,7 @@ from GUI_Utils import *
 from File_Utils import *
 from Paths import *
 import os
+import socket
 import tensorflow as tf
 from object_detection.utils import label_map_util
 from object_detection.builders import model_builder
@@ -32,6 +33,8 @@ CANVAS_WIDTH = 400
 CANVAS_HEIGHT = 600
 LINE_WIDTH = 1
 FONT_SIZE = 1
+HOST = '127.0.0.1'  # The server's hostname or IP address
+PORT = 64250  # The port used by the server
 
 # Load category index
 category_index = label_map_util.create_category_index_from_labelmap(files['LABELMAP'])
@@ -118,9 +121,9 @@ class App:
         # Reading Frame
         self.reading_frame = frame_create(window, text_="Volume Reading", row_=3, col_=1, colspan_=2, rowspan_=1)
         self.intf1 = tk.StringVar()
-        self.itf1_reading = label_create(self.reading_frame, width_=15, row_=0, col_=1, pad_x=1, pad_y=8, label="Interface1 (ml)", var=self.intf1)
+        label_create(self.reading_frame, width_=15, row_=0, col_=1, pad_x=1, pad_y=8, label="Interface1 (ml)", var=self.intf1)
         self.intf2 = tk.StringVar()
-        self.itf2_reading = label_create(self.reading_frame, width_=15, row_=1, col_=1, pad_x=1, pad_y=8, label="Interface2 (ml)", var=self.intf2)
+        label_create(self.reading_frame, width_=15, row_=1, col_=1, pad_x=1, pad_y=8, label="Interface2 (ml)", var=self.intf2)
 
         self.delay = 100
         self.update()
@@ -151,7 +154,13 @@ class App:
                                                                     max_boxes=2,
                                                                     min_score_thresh=0.2)
 
-            self.order_intf ()                              # Order interfaces so the one on top goes first and not according confidence
+            self.order_intf()                               # Order interfaces so the one on top goes first and not according confidence
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:            #Open socket and try to send to Labview
+                s.connect((HOST, PORT))
+                joined_readings = self.intf1.get() + ',' + self.intf2.get() + "\r\n"
+                s.sendall(bytes(joined_readings, 'ascii'))
+                s.close()
+
             print('Readings: ', self.meniscus.reading)      # Print on Command Line of another program (Labview) to capture it
 
             image_np_with_detections = cv2.resize(image_np_with_detections, self.fit_img_to_canvas())                       # Resize image to fit the height in the canvas
@@ -273,4 +282,6 @@ class MyVideoCapture:
 if __name__ == "__main__":
     cfg_params = ConfigParams(DEFAULT_CAM, RESOLUTIONS, DISTANCE, TUBE_DIAM, CANVAS_WIDTH, CANVAS_HEIGHT, LINE_WIDTH, FONT_SIZE)
     cfg_params = get_config(CONFIG_FILE, cfg_params)
+
+
     App(tk.Tk(), "Level Meter", cfg_params)
