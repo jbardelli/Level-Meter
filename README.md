@@ -6,11 +6,11 @@ This project started as a way to automatically measure volumes of oil and water 
 
 There are many methods to measure level in liquids, among those there are ultrasonic, capacitive and optical. 
 
-**Ultrasonic:** In our case the availability and price of ultrasonic devices for the required sensibility was beyond the budget of this project. 
+* **Ultrasonic:** In our case the availability and price of ultrasonic devices for the required sensibility was beyond the budget of this project. 
 
-**Capacitive:** For the capacitive method, a metalic tube is used as two phase separator with a concentric and isolated rod  which forms a coaxial capacitor. Changing the amount of air, water and oil in the container (outer tube) changes the dielectric of the capacitor and hence the total measured capacity. Tests made showed that with a good LCR (impedance meter) the capacity value reading was not stable enough to make measurements in a long period of time. Parasite capacities could have a major factor in these tests and further investigation is needed to determine if the method is feasable to this project required sensibility and presition.
+* **Capacitive:** For the capacitive method, a metalic tube is used as two phase separator with a concentric and isolated rod  which forms a coaxial capacitor. Changing the amount of air, water and oil in the container (outer tube) changes the dielectric of the capacitor and hence the total measured capacity. Tests made showed that with a good LCR (impedance meter) the capacity value reading was not stable enough to make measurements in a long period of time. Parasite capacities could have a major factor in these tests and further investigation is needed to determine if the method is feasable to this project required sensibility and presition.
 
-**Optical:** Tests made in the past with a 1920 pixels resolution camera, proved to be suficient for the project requirements, but the detection of the meniscus (interface between two phases either air-liquid or water oil) was very difficult using computer vision tools at the time. The detection in that case was made using a colored liquid (usually blue) and doing a thresholding on the blue channel. But thresholding technique (even the adaptive thresolding) is not good enough as the interface (meniscus) is lost when illumination levels change in the room or when both phases are translucid.
+* **Optical:** Tests made in the past with a 1920 pixels resolution camera, proved to be suficient for the project requirements, but the detection of the meniscus (interface between two phases either air-liquid or water oil) was very difficult using computer vision tools at the time. The detection in that case was made using a colored liquid (usually blue) and doing a thresholding on the blue channel. But thresholding technique (even the adaptive thresolding) is not good enough as the interface (meniscus) is lost when illumination levels change in the room or when both phases are translucid.
 
 Broad availability of new tools for computer vision as image classification and object detection, provided new possibilities for the optical method. 
 
@@ -27,3 +27,28 @@ Once the object detection part of the program was finished, I developed a GUI ap
 
 
 ![GUI interface demo](demos/test_tube_reading_3.gif)
+
+# Usage
+You need first Tkinter, OpenCV and Tensorflow packages installed to be able to run the program.
+first you need to clone the repository and then run "Level_Meter_GUI.py".
+Once the image is cropped so only the white background and the tube are in the frame, click on the image to mark the minimum mark of the tube and then the maximum mark. Then specify the volume that correcsponds to this marks in the Tube Volumes section fields.
+
+# Changing Config File
+If the configuration file does not exist, the app will create one with default parameters. You can edit the "Level_Meter.cfg" file with a text editor and change the default values. See below a reference to the available parameters and the meaning of each one.
+
+* Camera=0                (USB Camera number that openCV uses to open the stream)
+
+* Resolution=1920x1080    (Resolution, use the best resolution supported by the camera separated by an "x")
+
+* Distance_to_object=200  (Distance from the tube to the lens of the camera in millimeters, it is used for parallax correction)
+
+* Tube_diameter=6         (Tube inner diameter in millimeters, aslo used in parallax correction)
+
+* Line_Width=1            (width of the lines to be displayed overlayed in the image, usually there is no need to change the default value)
+
+* Font_Size=1             (size of the font to be displayed overlayed in the image, must be integer or the program will fail)
+
+* Canvas_Width=400        (Canvas Size can be changed to match the resolution of the monitor or available screen space)
+
+* Canvas_Height=670
+
